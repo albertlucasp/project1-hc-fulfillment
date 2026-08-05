@@ -1,0 +1,14 @@
+sources:
+  - name: raw
+    description: Raw data loaded from the HC Fulfillment SQL Server database.
+    schema: raw
+    tables:
+      - name: master_data
+        description: Master data of the employee
+      - name: formation_level1
+        description: Required formation for top hierarchy
+      - name: formation_level2
+        description: Required formation for second hierarchy
+      - name: formation_level3
+        description: Required formation for third hierarchy
+      

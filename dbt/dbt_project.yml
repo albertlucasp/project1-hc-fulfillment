@@ -1,0 +1,25 @@
+name: 'hc_fulfillment'
+version: '1.0'
+
+profile: 'hc_fulfillment'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macro"]
+snapshot-paths: ["snapshots"]
+target-path: target
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  hc_fulfillment:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: table
+    marts:
+      +materialized: table
