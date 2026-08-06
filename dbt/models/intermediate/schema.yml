@@ -1,0 +1,118 @@
+models:
+  - name: int_formation_unpivoted
+    description: >
+      Formation targets reshaped from wide (one column per job title) to
+      long (one row per org unit + job title + target_count), so they can be
+      joined against actual headcount later. org_level indicates which org
+      unit grain the target applies to: 1 = main_branch, 2 = sub_branch,
+      3 = branch. sub_branch_name/branch_name are null when not applicable
+      at that org_level.
+    columns:
+      - name: org_level
+        description: Hierarchy level the target applies to (1, 2, or 3).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+      - name: main_branch_name
+        description: Name of the main branch. Always populated.
+        data_tests:
+          - not_null
+      - name: sub_branch_name
+        description: Name of the sub branch. Only populated when org_level is 2 or 3.
+      - name: branch_name
+        description: Name of the branch. Only populated when org_level is 3.
+      - name: job_title
+        description: Job title the target_count applies to.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - "Main Branch CEO"
+                  - "Vice President Director"
+                  - "Main Branch Department A Head"
+                  - "Main Branch Department B Head"
+                  - "Main Branch Department C Head"
+                  - "Sub Branch Leader"
+                  - "Manager"
+                  - "Assistant Manager"
+                  - "Team Leader"
+                  - "Supervisor"
+                  - "Coordinator"
+                  - "Senior Staff"
+                  - "Junior Staff"
+                  - "Associate Staff"
+      - name: target_count
+        description: Formation target headcount for this org unit + job title.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              ["org_level", "main_branch_name", "sub_branch_name", "branch_name", "job_title"]
+
+  - name: int_master_data
+    description: >
+      One row per employee per snapshot_date, enriched with org_level and
+      cleaned main_branch_name/sub_branch_name/branch_name so it lines up
+      with int_formation_unpivoted. job_title and org names are cleaned from
+      the ~7.5% messiness present in stg_master_data (see model SQL comments
+      for the approach). This is the row-level cleanup step; aggregation
+      into actual headcount happens in a later model.
+    columns:
+      - name: snapshot_date
+        description: Date of monthly employee snapshot.
+        data_tests:
+          - not_null
+      - name: employee_id
+        description: Employee identifier.
+        data_tests:
+          - not_null
+      - name: employment_status_code
+        description: Employee status code (e.g. A, L, M, T).
+      - name: employment_status_name
+        description: Employee status name.
+      - name: org_level
+        description: >
+          Hierarchy level derived from the employee's (cleaned) job_title:
+          1 = main branch role, 2 = sub branch role, 3 = branch role.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+      - name: job_title
+        description: Cleaned job title, matching the 14 canonical formation titles.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - "Main Branch CEO"
+                  - "Vice President Director"
+                  - "Main Branch Department A Head"
+                  - "Main Branch Department B Head"
+                  - "Main Branch Department C Head"
+                  - "Sub Branch Leader"
+                  - "Manager"
+                  - "Assistant Manager"
+                  - "Team Leader"
+                  - "Supervisor"
+                  - "Coordinator"
+                  - "Senior Staff"
+                  - "Junior Staff"
+                  - "Associate Staff"
+      - name: main_branch_name
+        description: Cleaned main branch name. Always populated.
+        data_tests:
+          - not_null
+      - name: sub_branch_name
+        description: Cleaned sub branch name. Only populated when org_level is 2 or 3.
+      - name: branch_name
+        description: Cleaned branch name. Only populated when org_level is 3.

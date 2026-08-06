@@ -1,0 +1,299 @@
+models:
+  - name: stg_master_data
+    description: Cleaned master data with renamed columns and typed values.
+    columns:
+      - name: snapshot_date
+        description: Date of monthly employee snapshot.
+        data_tests:
+          - not_null
+      - name: employee_id
+        description: Unique identifier each employee.
+        data_tests:
+          - not_null
+      - name: employee_name
+        description: Name of employee.
+      - name: grade_level
+        description: Job or career grade.
+      - name: pay_grade
+        description: Payroll grade from the source extract.
+      - name: job_code
+        description: Source-system job code.
+      - name: job_title
+        description: Source-system job title.
+      - name: position_code
+        description: Source-system position code.
+      - name: position_title
+        description: Position title assigned to the employee.
+      - name: area_code
+        description: Broad organizational area code.
+      - name: area_name
+        description: Broad organizational area name.
+      - name: subarea_code
+        description: More specific organizational area code.
+      - name: subarea_name
+        description: More specific organizational area name.
+      - name: org_unit_code
+        description: Source-system organization unit code.
+      - name: org_unit_name
+        description: Source-system organization unit name.
+      - name: employment_status_code
+        description: Employee status code.
+      - name: employment_status_name
+        description: Employee status name.
+      - name: employment_group_code
+        description: Employee group code.
+      - name: employment_group_name
+        description: Employee group label.
+      - name: employment_subgroup_code
+        description: Employee subgroup code.
+      - name: employment_subgroup_name
+        description: Employee subgroup label.
+      - name: gender
+        description: Gender value.
+      - name: birth_date
+        description: Date of birth
+      - name: birth_city
+        description: City of birth.
+      - name: entry_program_code
+        description: Recruitment or entry program code.
+      - name: entry_program_name
+        description: Recruitment or entry program label.
+      - name: tax_number
+        description: Tax number.
+      - name: marital_status
+        description: Marital status.
+      - name: dependent_count
+        description: Number of dependents.
+      - name: company_join_date
+        description: First company service date.
+      - name: termination_date
+        description: Termination date when applicable.
+      - name: source_file
+        description: Path of the source file.
+      - name: source_file_name
+        description: Name of the source file.
+      - name: source_row_number
+        description: Row number in the source file.
+      - name: loaded_at
+        description: Timestamp of when the data was loaded.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["snapshot_date", "employee_id"]
+
+  - name: stg_formation_level1
+    description: >
+      Formation targets for the top (main branch) hierarchy level. Grain is
+      one row per main branch. Validated in advance_expore.md: 17 raw rows,
+      main_branch_name is a clean single-column candidate key (no
+      nulls/duplicates), and all 5 target columns have no null/blank,
+      non-numeric, zero, or negative values.
+    columns:
+      - name: main_branch_name
+        description: Name of the main branch. Candidate key for this model.
+        data_tests:
+          - not_null
+          - unique
+      - name: main_branch_ceo
+        description: Formation target headcount for the Main Branch CEO role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: vice_president_director
+        description: Formation target headcount for the Vice President Director role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: main_branch_department_a_head
+        description: Formation target headcount for the Main Branch Department A Head role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: main_branch_department_b_head
+        description: Formation target headcount for the Main Branch Department B Head role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: main_branch_department_c_head
+        description: Formation target headcount for the Main Branch Department C Head role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: formation_level
+        description: Hierarchy level indicator. Always 1 for this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1]
+      - name: source_file
+        description: Path of the source file.
+      - name: source_file_name
+        description: Name of the source file.
+      - name: source_row_number
+        description: Row number in the source file.
+      - name: loaded_at
+        description: Timestamp of when the data was loaded.
+
+  - name: stg_formation_level2
+    description: >
+      Formation targets for the second (sub branch) hierarchy level. Grain is
+      one row per sub branch within a main branch. Validated in
+      advance_expore.md: 51 raw rows, (main_branch_name, sub_branch_name) is a
+      clean composite candidate key, each main branch has exactly 3 sub
+      branches, no sub_branch_name is ambiguously shared across main branches,
+      and all 4 target columns have no null/blank, non-numeric, zero, or
+      negative values.
+    columns:
+      - name: main_branch_name
+        description: Name of the parent main branch.
+        data_tests:
+          - not_null
+      - name: sub_branch_name
+        description: >
+          Name of the sub branch. Not unique on its own (it only looks
+          unique in this dataset because the generator embeds the parent
+          main_branch_name into the string) - the real candidate key is the
+          (main_branch_name, sub_branch_name) combination, tested below at
+          the model level.
+        data_tests:
+          - not_null
+      - name: sub_branch_leader
+        description: Formation target headcount for the Sub Branch Leader role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: manager
+        description: Formation target headcount for the Manager role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: assistant_manager
+        description: Formation target headcount for the Assistant Manager role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: team_leader
+        description: Formation target headcount for the Team Leader role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: formation_level
+        description: Hierarchy level indicator. Always 2 for this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [2]
+      - name: source_file
+        description: Path of the source file.
+      - name: source_file_name
+        description: Name of the source file.
+      - name: source_row_number
+        description: Row number in the source file.
+      - name: loaded_at
+        description: Timestamp of when the data was loaded.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["main_branch_name", "sub_branch_name"]
+
+  - name: stg_formation_level3
+    description: >
+      Formation targets for the third (branch) hierarchy level. Grain is one
+      row per branch within a sub branch within a main branch. Validated in
+      advance_expore.md: 255 raw rows, (main_branch_name, sub_branch_name,
+      branch_name) is a clean composite candidate key, each sub branch has
+      exactly 5 branches, no branch_name is ambiguously shared across
+      (main_branch_name, sub_branch_name) parent paths, and all 5 target
+      columns have no null/blank, non-numeric, zero, or negative values.
+    columns:
+      - name: main_branch_name
+        description: Name of the parent main branch.
+        data_tests:
+          - not_null
+      - name: sub_branch_name
+        description: Name of the parent sub branch.
+        data_tests:
+          - not_null
+      - name: branch_name
+        description: >
+          Name of the branch. Not unique on its own (it only looks unique in
+          this dataset because the generator embeds the full parent lineage
+          into the string) - the real candidate key is the (main_branch_name,
+          sub_branch_name, branch_name) combination, tested below at the
+          model level.
+        data_tests:
+          - not_null
+      - name: supervisor
+        description: Formation target headcount for the Supervisor role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: coordinator
+        description: Formation target headcount for the Coordinator role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: senior_staff
+        description: Formation target headcount for the Senior Staff role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: junior_staff
+        description: Formation target headcount for the Junior Staff role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: associate_staff
+        description: Formation target headcount for the Associate Staff role.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: formation_level
+        description: Hierarchy level indicator. Always 3 for this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [3]
+      - name: source_file
+        description: Path of the source file.
+      - name: source_file_name
+        description: Name of the source file.
+      - name: source_row_number
+        description: Row number in the source file.
+      - name: loaded_at
+        description: Timestamp of when the data was loaded.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["main_branch_name", "sub_branch_name", "branch_name"]
