@@ -19,7 +19,10 @@ models:
   hc_fulfillment:
     staging:
       +materialized: view
+      +schema: staging
     intermediate:
       +materialized: table
+      +schema: intermediate
     marts:
       +materialized: table
+      +schema: marts

@@ -18,3 +18,5 @@ logs/
 dbt/logs/
 dbt/target/
 dbt/.user.yml
+
+CLAUDE.md

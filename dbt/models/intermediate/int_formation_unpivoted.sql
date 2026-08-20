@@ -1,18 +1,4 @@
--- Reshapes formation targets from "wide" (one column per job title) into
--- "long" format (one row per org unit + job title + target_count).
---
--- Why this model exists: stg_formation_level1/2/3 have one row per org unit
--- with job titles spread across columns. stg_master_data has one row per
--- employee, with job_title as a VALUE in a single column. Those two shapes
--- cannot be compared or joined directly. This model reshapes the formation
--- side so it matches the "long" shape of the employee side - that is what
--- makes fct_fulfillment_rate possible later.
---
--- org_level tells you which org-unit grain a given job title's target
--- applies to:
---   1 = main_branch, 2 = sub_branch, 3 = branch
--- sub_branch_name / branch_name are null when not applicable at that level
--- (e.g. a level-1 target like "Main Branch CEO" has no sub_branch/branch).
+-- Reshapes formation targets from "wide" (one column per job title) into.
 
 with level1 as (
     select
