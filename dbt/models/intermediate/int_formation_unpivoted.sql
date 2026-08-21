@@ -1,11 +1,11 @@
--- Reshapes formation targets from "wide" (one column per job title) into.
+-- Reshapes formation targets from "wide" (one column per job title).
 
 with level1 as (
     select
         1 as org_level,
         main_branch_name,
-        cast(null as varchar) as sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as sub_branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Main Branch CEO' as job_title,
         main_branch_ceo as target_count
     from {{ ref('stg_formation_level1') }}
@@ -15,8 +15,8 @@ with level1 as (
     select
         1 as org_level,
         main_branch_name,
-        cast(null as varchar) as sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as sub_branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Vice President Director' as job_title,
         vice_president_director as target_count
     from {{ ref('stg_formation_level1') }}
@@ -26,8 +26,8 @@ with level1 as (
     select
         1 as org_level,
         main_branch_name,
-        cast(null as varchar) as sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as sub_branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Main Branch Department A Head' as job_title,
         main_branch_department_a_head as target_count
     from {{ ref('stg_formation_level1') }}
@@ -37,8 +37,8 @@ with level1 as (
     select
         1 as org_level,
         main_branch_name,
-        cast(null as varchar) as sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as sub_branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Main Branch Department B Head' as job_title,
         main_branch_department_b_head as target_count
     from {{ ref('stg_formation_level1') }}
@@ -48,8 +48,8 @@ with level1 as (
     select
         1 as org_level,
         main_branch_name,
-        cast(null as varchar) as sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as sub_branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Main Branch Department C Head' as job_title,
         main_branch_department_c_head as target_count
     from {{ ref('stg_formation_level1') }}
@@ -60,7 +60,7 @@ level2 as (
         2 as org_level,
         main_branch_name,
         sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Sub Branch Leader' as job_title,
         sub_branch_leader as target_count
     from {{ ref('stg_formation_level2') }}
@@ -71,7 +71,7 @@ level2 as (
         2 as org_level,
         main_branch_name,
         sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Manager' as job_title,
         manager as target_count
     from {{ ref('stg_formation_level2') }}
@@ -82,7 +82,7 @@ level2 as (
         2 as org_level,
         main_branch_name,
         sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Assistant Manager' as job_title,
         assistant_manager as target_count
     from {{ ref('stg_formation_level2') }}
@@ -93,7 +93,7 @@ level2 as (
         2 as org_level,
         main_branch_name,
         sub_branch_name,
-        cast(null as varchar) as branch_name,
+        cast(null as varchar(255)) as branch_name,
         'Team Leader' as job_title,
         team_leader as target_count
     from {{ ref('stg_formation_level2') }}

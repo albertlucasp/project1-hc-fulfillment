@@ -6,8 +6,8 @@ with source as (
 renamed as (
     select
     --identifier
-        cast(nullif(trim(main_branch_name), '') as varchar) as main_branch_name,
-        cast(nullif(trim(sub_branch_name), '') as varchar) as sub_branch_name,
+        cast(nullif(trim(main_branch_name), '') as varchar(255)) as main_branch_name,
+        cast(nullif(trim(sub_branch_name), '') as varchar(255)) as sub_branch_name,
 
     --formation targets (by job title)
         cast([Sub Branch Leader] as int) as sub_branch_leader,

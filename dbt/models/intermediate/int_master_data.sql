@@ -30,6 +30,8 @@ transform_job_title as (
         org_unit_code,
         org_unit_name,
         case upper(trim(job_title))
+            when 'MAIN BRANCH CEO' then 'Main Branch CEO'
+            when 'VICE PRESIDENT DIRECTOR' then 'Vice President Director'
             when 'COORD' then 'Coordinator'
             when 'COORDINATOR' then 'Coordinator'
             when 'SUB BRANCH LEADER' then 'Sub Branch Leader'
