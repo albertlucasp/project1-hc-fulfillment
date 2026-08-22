@@ -13,7 +13,9 @@ base as (
         subarea_code,
         subarea_name,
         org_unit_code,
-        org_unit_name
+        org_unit_name,
+        employment_status_code,
+        employment_status_name
     from source
     where employment_status_code in ('A', 'L', 'M')
 ),
@@ -29,6 +31,8 @@ transform_job_title as (
         subarea_name,
         org_unit_code,
         org_unit_name,
+        employment_status_code,
+        employment_status_name,
         case upper(trim(job_title))
             when 'MAIN BRANCH CEO' then 'Main Branch CEO'
             when 'VICE PRESIDENT DIRECTOR' then 'Vice President Director'
@@ -135,7 +139,9 @@ combined as(
         can_subarea.subarea_name as subarea_name,
         wl.org_unit_code,
         can_org_unit.org_unit_name as org_unit_name,
-        wl.org_level
+        wl.org_level,
+        wl.employment_status_code,
+        wl.employment_status_name
     from with_level wl
     left join cleaned_area_names can_area
         on wl.area_code = can_area.area_code
@@ -157,6 +163,8 @@ repivoted as (
         org_unit_code,
         org_unit_name,
         org_level,
+        employment_status_code,
+        employment_status_name,
         area_name as main_branch_name,
         case when org_level in (2, 3) then subarea_name else null end as sub_branch_name,
         case when org_level = 3 then org_unit_name else null end as branch_name
