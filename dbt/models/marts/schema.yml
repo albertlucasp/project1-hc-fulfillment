@@ -1,0 +1,171 @@
+models:
+  - name: dim_org
+    description: >
+      Org hierarchy dimension. One row per distinct org node (org_level +
+      main_branch_name + sub_branch_name + branch_name), sourced from the
+      union of int_master_data and int_formation_unpivoted so an org node
+      with only actual employees or only a formation target still gets a
+      row. fct_headcount and fct_formation both key into this table via
+      org_key.
+    columns:
+      - name: org_key
+        description: Surrogate key, hashed from (org_level, main_branch_name, sub_branch_name, branch_name).
+        data_tests:
+          - not_null
+          - unique
+      - name: org_level
+        description: Hierarchy level of this org node (1 = main branch, 2 = sub branch, 3 = branch).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+      - name: main_branch_name
+        description: Name of the main branch. Always populated.
+        data_tests:
+          - not_null
+      - name: sub_branch_name
+        description: Name of the sub branch. Only populated when org_level is 2 or 3.
+      - name: branch_name
+        description: Name of the branch. Only populated when org_level is 3.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["org_level", "main_branch_name", "sub_branch_name", "branch_name"]
+
+  - name: dim_job_title
+    description: >
+      Job title dimension. One row per canonical job title, with the
+      org_level it belongs to. Sourced from int_formation_unpivoted, which
+      guarantees all 14 canonical titles appear (they're the literal
+      column-name strings the wide-to-long unpivot was built from).
+      fct_headcount and fct_formation both key into this table via
+      job_title_key.
+    columns:
+      - name: job_title_key
+        description: Surrogate key, hashed from job_title.
+        data_tests:
+          - not_null
+          - unique
+      - name: org_level
+        description: Hierarchy level this job title belongs to (1, 2, or 3).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+      - name: job_title
+        description: Canonical job title.
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments:
+                values:
+                  - "Main Branch CEO"
+                  - "Vice President Director"
+                  - "Main Branch Department A Head"
+                  - "Main Branch Department B Head"
+                  - "Main Branch Department C Head"
+                  - "Sub Branch Leader"
+                  - "Manager"
+                  - "Assistant Manager"
+                  - "Team Leader"
+                  - "Supervisor"
+                  - "Coordinator"
+                  - "Senior Staff"
+                  - "Junior Staff"
+                  - "Associate Staff"
+
+  - name: fct_headcount
+    description: >
+      Actual headcount fact. One row per employee per snapshot_date (same
+      grain as int_master_data) - the atomic fact a BI tool slices live by
+      org/job/month. org_key and job_title_key resolve via a null-safe
+      join against dim_org/dim_job_title (org_level 1/2 rows have null
+      sub_branch_name/branch_name on both sides, which need COALESCE
+      handling since NULL never equals NULL in SQL).
+    columns:
+      - name: employee_id
+        description: Employee identifier.
+        data_tests:
+          - not_null
+      - name: snapshot_date
+        description: Date of the monthly employee snapshot.
+        data_tests:
+          - not_null
+      - name: employment_status_code
+        description: Employee status code at this snapshot (A = Active, L = Long Leave, M = Retirement Preparation).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["A", "L", "M"]
+      - name: employment_status_name
+        description: Employee status name at this snapshot.
+        data_tests:
+          - not_null
+      - name: org_key
+        description: Foreign key to dim_org.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_org')
+                field: org_key
+      - name: job_title
+        description: Employee's cleaned job title (convenience column - also available via job_title_key).
+        data_tests:
+          - not_null
+      - name: job_title_key
+        description: Foreign key to dim_job_title.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_job_title')
+                field: job_title_key
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["employee_id", "snapshot_date"]
+
+  - name: fct_formation
+    description: >
+      Formation target fact. One row per org node + job title (same grain
+      as int_formation_unpivoted) - dateless, since formation targets
+      aren't a time series. org_key and job_title_key resolve the same
+      null-safe way as fct_headcount, so a BI tool can relate both facts
+      to the same dimensions and compare actual vs. target live.
+    columns:
+      - name: org_key
+        description: Foreign key to dim_org.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_org')
+                field: org_key
+      - name: job_title
+        description: Job title the target applies to (convenience column - also available via job_title_key).
+        data_tests:
+          - not_null
+      - name: job_title_key
+        description: Foreign key to dim_job_title.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_job_title')
+                field: job_title_key
+      - name: target_count
+        description: Formation target headcount for this org node + job title.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ["org_key", "job_title_key"]
