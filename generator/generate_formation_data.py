@@ -6,6 +6,7 @@ from generator.config import (
     FORMATION_DIR,
     LEVEL1_JOBDESC,
     LEVEL2_JOBDESC,
+    LEVEL3_FORMATION_TARGET_RANGE,
     LEVEL3_JOBDESC,
     SEED,
 )
@@ -28,7 +29,7 @@ def target_for_job(level: int, job_title: str, rng: random.Random) -> int:
         if "Leader" in job_title or "Manager" in job_title:
             return rng.choice([1, 1, 2])
         return rng.randint(2, 8)
-    return rng.randint(1, 6)
+    return rng.randint(*LEVEL3_FORMATION_TARGET_RANGE)
 
 
 def job_titles_for_level(level: int) -> list[str]:
