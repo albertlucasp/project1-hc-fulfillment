@@ -1,7 +1,13 @@
 from pathlib import Path
 
 SEED = 42
-OUTPUT_DIR = Path("data/raw")
+# Anchored to the repo root (mirrors ingestion/database.py's PROJECT_ROOT
+# pattern) rather than a bare relative path - a relative "data/raw" only
+# resolves correctly when the process's cwd happens to be repo root, which
+# breaks silently for any other invoker (a container, a CI runner, a cron
+# job) that doesn't guarantee that cwd.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = PROJECT_ROOT / "data" / "raw"
 MASTER_DATA_DIR = OUTPUT_DIR / "master_data"
 FORMATION_DIR = OUTPUT_DIR / "formation"
 

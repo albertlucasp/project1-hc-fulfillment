@@ -4,7 +4,7 @@ hc_fulfillment:
     dev:
       type: sqlserver
       driver: "ODBC Driver 18 for SQL Server"
-      host: localhost
+      host: "{{ env_var('HC_SQLSERVER_HOST', 'localhost') }}"
       port: 1433
       user: sa
       password: "{{ env_var('MSSQL_SA_PASSWORD') }}"
@@ -14,7 +14,7 @@ hc_fulfillment:
     prod:
       type: sqlserver
       driver: "ODBC Driver 18 for SQL Server"
-      host: localhost
+      host: "{{ env_var('HC_SQLSERVER_HOST', 'localhost') }}"
       port: 1433
       user: sa
       password: "{{ env_var('MSSQL_SA_PASSWORD') }}"
