@@ -145,6 +145,8 @@ docker compose down -v
 
 # To be continued...
 
-(dbt transformation layer, Power BI dashboard, and orchestration/CI
-sections pending - Airflow is being hand-built to actually learn it rather
-than generated)
+(dbt transformation layer and Power BI dashboard sections pending)
+
+Orchestration (Airflow) is being hand-built, in progress - see
+[docs/airflow_setup.md](docs/airflow_setup.md) for the step-by-step build
+log and reasoning.
