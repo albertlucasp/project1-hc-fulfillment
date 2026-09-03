@@ -49,8 +49,8 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.3.1}
-  # build: .
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.3.1}
+  build: ./Docker/Airflow
   env_file:
     - ${ENV_FILE_PATH:-.env}
   environment:
@@ -60,7 +60,7 @@ x-airflow-common:
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET:-airflow_jwt_secret}
     AIRFLOW__API_AUTH__JWT_ISSUER: ${AIRFLOW__API_AUTH__JWT_ISSUER:-airflow}
@@ -74,15 +74,30 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    HC_SQLSERVER_HOST: sqlserver
+    # Redirects uv's venv build location to a container-only path (backed
+    # by the named volume below) instead of the bind-mounted project root -
+    # a container-built venv sitting at the same path as the host's own
+    # .venv risks a platform/libc mismatch (see
+    # de-best-practice-notes/airflow_docker_compose_notes.md).
+    UV_PROJECT_ENVIRONMENT: /opt/uv-venv
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    # The whole project - pyproject.toml, uv.lock, generator/, ingestion/,
+    # dbt/ - so `uv run ...` inside a DAG task has real code to run
+    # against. Bind-mounted, not COPY'd into the image, so code changes
+    # show up without an image rebuild.
+    - ${AIRFLOW_PROJ_DIR:-.}:/opt/hc_fulfillment
+    - hc_fulfillment_uv_venv:/opt/uv-venv
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
     postgres:
+      condition: service_healthy
+    sqlserver:
       condition: service_healthy
 
 services:
@@ -270,5 +285,23 @@ services:
     depends_on:
       <<: *airflow-common-depends-on
 
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: hc_fulfillment_sqlserver
+    env_file:
+      - .env
+    ports:
+      - "1433:1433"
+    volumes:
+      - hc_fulfillment_mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'select 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
 volumes:
   postgres-db-volume:
+  hc_fulfillment_mssql_data:
+  hc_fulfillment_uv_venv:

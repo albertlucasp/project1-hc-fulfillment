@@ -249,20 +249,95 @@ Confirmed: `uv` on `PATH` (`uv 0.11.21`), and `odbcinst -j` printing real
 driver-manager config paths (`/etc/odbcinst.ini`, etc.) rather than an
 empty/broken install.
 
+## Step 7: merge into one compose file
+
+Deleted `docker-compose.yml` (the SQL-Server-only file) entirely rather
+than keeping both and relying on Compose's file-precedence order - after
+Step 4's surprise, removing the ambiguity outright was preferable to
+trusting a precedence rule that already turned out to be version-dependent.
+The `sqlserver` service and its `hc_fulfillment_mssql_data` volume were
+moved into `docker-compose.yaml`'s `services:`/`volumes:` blocks, alongside
+`postgres` and the Airflow services.
+
+Two changes made in the same pass, both already covered above but now
+actually wired in:
+- `x-airflow-common`'s `build:` now points at the custom image
+  (`./Docker/Airflow` - a directory, not the Dockerfile path itself;
+  Compose builds it automatically on `docker compose up` from here on,
+  rather than needing a separate manual `docker build`).
+- `HC_SQLSERVER_HOST: sqlserver` added to `x-airflow-common`'s
+  `environment:` block, as a literal value - **not**
+  `${HC_SQLSERVER_HOST:-localhost}`. Since this project's `.env` already
+  sets `HC_SQLSERVER_HOST=localhost` (correct for the *manual*, on-host
+  pipeline), a `${...}` substitution here would have resolved back to
+  `localhost` before the container even started, undoing the whole point.
+  `environment:` values take precedence over `env_file:` for the same key
+  inside a container, which is what makes the literal override actually
+  stick despite `.env` also being loaded via `env_file:`.
+
+**`depends_on` decision**: added `sqlserver: condition: service_healthy`
+to the shared `&airflow-common-depends-on` anchor, alongside `postgres` -
+on top of, not instead of, the DAG-level retry semantics already planned.
+Reasoning: container-level `depends_on`+healthcheck only ever protects
+*cold start* (don't let Airflow boot before SQL Server reports healthy) -
+it's never re-checked once everything's running. DAG-level retries protect
+the *ongoing* case (a transient failure at any point during actual
+operation, e.g. `sqlserver` restarting mid-deployment). Different failure
+windows, not competing solutions - a solid setup uses both, and since
+`sqlserver` already had a working `healthcheck:` sitting right there,
+adding it to `depends_on` cost nothing.
+
+## Step 8: fix two silently-defaulting env vars, then verify real connectivity
+
+Bringing the merged stack up first surfaced two warnings:
+```
+WARN[0000] The "FERNET_KEY" variable is not set. Defaulting to a blank string.
+WARN[0000] The "AIRFLOW_UID" variable is not set. Defaulting to a blank string.
+```
+Neither is a hard failure - Airflow tolerates a blank `FERNET_KEY` by
+treating it as "don't encrypt" rather than erroring, and `AIRFLOW_UID`
+falls back to `50000` via `${AIRFLOW_UID:-50000}` everywhere it's actually
+used for the `user:` directive. But both are real gaps, not cosmetic:
+
+- **`FERNET_KEY`** - the key Airflow uses to encrypt sensitive data at
+  rest in its metadata DB (connection passwords, secret Variables). A
+  blank key means that encryption is silently a no-op. Generated a real
+  one and added it to `.env`:
+  ```bash
+  python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  ```
+- **`AIRFLOW_UID`** - without it, files these containers write into the
+  bind-mounted `dags/`, `logs/`, `config/`, `plugins/` folders get owned
+  by UID `50000` instead of the host user - fine while everything's
+  container-only, but a real permissions wall the moment you try to edit
+  or delete one of those files from your own terminal. Set to the actual
+  host UID:
+  ```bash
+  id -u
+  ```
+
+Both added to `.env` (gitignored, not committed - see `.env.example` for
+the documented full list of vars). Re-ran `docker compose down && docker
+compose up -d`; both warnings gone on the next boot.
+
+**Verified real connectivity, not just "no errors on boot"** - proved a
+running Airflow container can actually reach `sqlserver` by service name,
+the mechanism the whole `HC_SQLSERVER_HOST` decision depends on:
+```bash
+docker compose exec airflow-scheduler bash -c "echo > /dev/tcp/sqlserver/1433 && echo 'reached sqlserver'"
+```
+This is a raw TCP connection attempt using bash's own `/dev/tcp` pseudo-
+device - no extra tools needed, works in any bash shell. Printed "reached
+sqlserver" - confirming Docker's service-name DNS resolution and the
+shared network both work exactly as intended, from inside a real
+container, not just in theory.
+
 ## Not done yet
 
-- Merge `docker-compose.yml` (SQL Server) into the Airflow compose file as
-  one file - removes the file-precedence ambiguity from Step 4, and is
-  required for Airflow's containers to reach `sqlserver` by service name.
-- Point the Airflow services at the custom `hc-fulfillment-airflow` image
-  (currently they still reference the vanilla `apache/airflow` image).
 - Bind-mount the project into the Airflow containers and redirect `uv`'s
   venv location to a container-local path, not the bind-mounted directory
   itself (a container-built venv at the same path as the host's own
   `.venv` risks a platform/libc mismatch).
-- Set `HC_SQLSERVER_HOST=sqlserver` on the Airflow containers (both
-  `ingestion/database.py` and `dbt/profiles.yml` already read this as an
-  env var defaulting to `localhost`, so no code changes needed there).
 - Write the actual DAG (`generate -> ingest -> dbt deps -> dbt build`).
 
 This section will be replaced with real steps as each of these is built.
